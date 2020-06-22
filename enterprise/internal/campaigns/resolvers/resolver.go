@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/db"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/envvar"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	"github.com/sourcegraph/sourcegraph/cmd/repo-updater/repos"
@@ -26,6 +27,7 @@ import (
 
 var ErrIDIsZero = errors.New("invalid node id")
 var ErrCampaignsDisabled = errors.New("campaigns are disabled. Set 'campaigns.enabled' in the site-configuration to enable the feature.")
+var ErrCampaignsDotCom = errors.New("write-access to campaigns on Sourcegraph.com is currently not available")
 
 // Resolver is the GraphQL resolver of all things related to Campaigns.
 type Resolver struct {
@@ -43,6 +45,18 @@ func campaignsEnabled() error {
 		return nil
 	}
 	return ErrCampaignsDisabled
+}
+
+// campaignsCreateAccess returns true if the current user can create
+// campaigns/patchsets/changesets.
+func campaignsCreateAccess(ctx context.Context) error {
+	// On Sourcegraph.com nobody can create campaigns/patchsets/changesets
+	if envvar.SourcegraphDotComMode() {
+		return ErrCampaignsDotCom
+	}
+
+	// Only site-admins can create campaigns/patchsets/changesets
+	return backend.CheckCurrentUserIsSiteAdmin(ctx)
 }
 
 func (r *Resolver) ChangesetByID(ctx context.Context, id graphql.ID) (graphqlbackend.ChangesetResolver, error) {
@@ -222,6 +236,10 @@ func (r *Resolver) CreateCampaign(ctx context.Context, args *graphqlbackend.Crea
 		return nil, err
 	}
 
+	if err := campaignsCreateAccess(ctx); err != nil {
+		return nil, err
+	}
+
 	var err error
 	tr, ctx := trace.New(ctx, "Resolver.CreateCampaign", args.Input.Name)
 	defer func() {
@@ -231,11 +249,6 @@ func (r *Resolver) CreateCampaign(ctx context.Context, args *graphqlbackend.Crea
 	user, err := db.Users.GetByCurrentAuthUser(ctx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%v", backend.ErrNotAuthenticated)
-	}
-
-	// 🚨 SECURITY: Only site admins may create a campaign for now.
-	if !user.SiteAdmin {
-		return nil, backend.ErrMustBeSiteAdmin
 	}
 
 	campaign := &campaigns.Campaign{
@@ -429,8 +442,7 @@ func (r *Resolver) CreateChangesets(ctx context.Context, args *graphqlbackend.Cr
 		return nil, err
 	}
 
-	// 🚨 SECURITY: Only site admins may create changesets for now
-	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
+	if err := campaignsCreateAccess(ctx); err != nil {
 		return nil, err
 	}
 
@@ -577,8 +589,7 @@ func (r *Resolver) CreatePatchSetFromPatches(ctx context.Context, args graphqlba
 		tr.Finish()
 	}()
 
-	// 🚨 SECURITY: Only site admins may create patch sets for now.
-	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
+	if err := campaignsCreateAccess(ctx); err != nil {
 		return nil, err
 	}
 
@@ -737,6 +748,11 @@ func parseCampaignState(s *string) (campaigns.CampaignState, error) {
 }
 
 func currentUserCanAdministerCampaign(ctx context.Context, c *campaigns.Campaign) (bool, error) {
+	// On Sourcegraph.com nobody can administer campaigns.
+	if envvar.SourcegraphDotComMode() {
+		return false, nil
+	}
+
 	// 🚨 SECURITY: Only site admins or the authors of a campaign have campaign admin rights.
 	if err := backend.CheckSiteAdminOrSameUser(ctx, c.AuthorID); err != nil {
 		if _, ok := err.(*backend.InsufficientAuthorizationError); ok {
