@@ -227,17 +227,11 @@ func SymbolIndexEnabled() bool {
 	return enabled
 }
 
-func CampaignsReadAccessEnabled() bool {
-	if v := Get().CampaignsReadAccessEnabled; v != nil {
+func CampaignsEnabled() bool {
+	if v := Get().SearchIndexEnabled; v != nil {
 		return *v
 	}
-
-	// DEPRECATED property name.
-	if v := Get().AutomationReadAccessEnabled; v != nil {
-		return *v
-	}
-
-	return false
+	return true
 }
 
 func ExternalURL() string {

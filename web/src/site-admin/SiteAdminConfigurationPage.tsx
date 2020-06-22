@@ -190,6 +190,14 @@ const quickConfigureActions: {
             return { edits, selectText: '<identity provider URL>' }
         },
     },
+    {
+        id: 'disableCampaigns',
+        label: 'Disable campaigns',
+        run: config => {
+            const edits = setProperty(config, ['campaigns.enabled'], false, defaultFormattingOptions)
+            return { edits, selectText: '' }
+        },
+    },
 ]
 
 interface Props extends RouteComponentProps<{}> {
@@ -254,21 +262,16 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
                                 return []
                             }),
                             tap(() => {
-                                // Flipping the Campaigns feature flag
-                                // ("automation") requires a reload for the
-                                // Campaigns UI to be correctly rendered.
-                                //
-                                // This should be removed once the feature flag
-                                // is removed.
-                                const lastAutomationEnabled =
-                                    (lastConfiguration &&
-                                        (jsonc.parse(lastConfiguration.effectiveContents) as SiteConfiguration)
-                                            ?.experimentalFeatures?.automation) === 'enabled'
-                                const newAutomationEnabled =
-                                    (jsonc.parse(newContents) as SiteConfiguration)?.experimentalFeatures
-                                        ?.automation === 'enabled'
+                                // Flipping the Campaigns feature flag requires
+                                // a reload for the Campaigns UI to be
+                                // correctly rendered.
+                                const key = 'campaigns.enabled'
+                                const lastCampaignsEnabled =
+                                    lastConfiguration &&
+                                    (jsonc.parse(lastConfiguration.effectiveContents) as SiteConfiguration)[key]
+                                const newCampaignsEnabled = (jsonc.parse(newContents) as SiteConfiguration)[key]
 
-                                if (lastAutomationEnabled !== newAutomationEnabled) {
+                                if (lastCampaignsEnabled !== newCampaignsEnabled) {
                                     window.location.reload()
                                 }
                             })

@@ -1,24 +1,12 @@
 # Configuration
 
-## Enabling campaigns
+## Disabling campaigns
 
-In order to use campaigns, a site-admin of your Sourcegraph instance must enable it in the site configuration settings e.g. `sourcegraph.example.com/site-admin/configuration`
-
-```json
-{
-  "experimentalFeatures": {
-      "automation": "enabled"
-  }
-}
-```
-
-## Read-access for non-site-admins
-
-Without any further configuration, campaigns are **only accessible to site admins.** If you want to grant read-only access to non-site-admins, use the following site configuration setting:
+Campaigns are enabled by default. In order to disable the feature for all users, a site-admin of your Sourcegraph instance must disable it in the site configuration settings e.g. `sourcegraph.example.com/site-admin/configuration`
 
 ```json
 {
-  "campaigns.readAccess.enabled": true
+  "campaigns.enabled": false
 }
 ```
 

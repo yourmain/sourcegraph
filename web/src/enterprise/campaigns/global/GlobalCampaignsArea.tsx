@@ -33,67 +33,66 @@ export const GlobalCampaignsArea = withAuthenticatedUser<Props>(({ match, ...out
     let content: React.ReactFragment
     if (outerProps.isSourcegraphDotCom) {
         content = <CampaignsDotComPage {...outerProps} />
-    } else if (window.context.experimentalFeatures?.automation === 'enabled') {
-        if (!outerProps.authenticatedUser.siteAdmin && window.context.site['campaigns.readAccess.enabled'] !== true) {
-            content = <CampaignsUserMarketingPage {...outerProps} enableReadAccess={true} />
-        } else {
-            content = (
-                <>
-                    <DismissibleAlert partialStorageKey="campaigns-beta" className="alert-info">
-                        <p className="mb-0">
-                            Campaigns are currently in beta. During the beta period, campaigns are free to use. After
-                            the beta period, campaigns will be available as a paid add-on. Get in touch on Twitter{' '}
-                            <a href="https://twitter.com/srcgraph">@srcgraph</a>, file an issue in our{' '}
-                            <a href="https://github.com/sourcegraph/sourcegraph/issues">public issue tracker</a>, or
-                            email{' '}
-                            <a href="mailto:feedback@sourcegraph.com?subject=Feedback on Campaigns">
-                                feedback@sourcegraph.com
-                            </a>
-                            . We're looking forward to your feedback!
-                        </p>
-                    </DismissibleAlert>
-                    {/* eslint-disable react/jsx-no-bind */}
-                    <Switch>
-                        <Route
-                            render={props => <GlobalCampaignListPage {...outerProps} {...props} />}
-                            path={match.url}
-                            exact={true}
-                        />
-                        <Route
-                            path={`${match.url}/create`}
-                            render={props => <CreateCampaign {...outerProps} {...props} />}
-                            exact={true}
-                        />
-                        <Route
-                            path={`${match.url}/cli`}
-                            render={props => <CampaignCliHelp {...outerProps} {...props} />}
-                            exact={true}
-                        />
-                        <Route
-                            path={`${match.url}/new`}
-                            render={props => <CampaignDetails {...outerProps} {...props} />}
-                            exact={true}
-                        />
-                        <Route
-                            path={`${match.url}/update`}
-                            render={props => <CampaignUpdateSelection {...outerProps} {...props} />}
-                            exact={true}
-                        />
-                        <Route
-                            path={`${match.url}/:campaignID`}
-                            render={({ match, ...props }: RouteComponentProps<{ campaignID: string }>) => (
-                                <CampaignDetails {...outerProps} {...props} campaignID={match.params.campaignID} />
-                            )}
-                        />
-                    </Switch>
-                    {/* eslint-enable react/jsx-no-bind */}
-                </>
-            )
-        }
+    } else if (window.context.site['campaigns.enabled']) {
+        content = (
+            <>
+                <DismissibleAlert partialStorageKey="campaigns-beta" className="alert-info">
+                    <p className="mb-0">
+                        Campaigns are currently in beta. During the beta period, campaigns are free to use. After the
+                        beta period, campaigns will be available as a paid add-on. Get in touch on Twitter{' '}
+                        <a href="https://twitter.com/srcgraph">@srcgraph</a>, file an issue in our{' '}
+                        <a href="https://github.com/sourcegraph/sourcegraph/issues">public issue tracker</a>, or email{' '}
+                        <a href="mailto:feedback@sourcegraph.com?subject=Feedback on Campaigns">
+                            feedback@sourcegraph.com
+                        </a>
+                        . We're looking forward to your feedback!
+                    </p>
+                </DismissibleAlert>
+                {/* eslint-disable react/jsx-no-bind */}
+                <Switch>
+                    <Route
+                        render={props => <GlobalCampaignListPage {...outerProps} {...props} />}
+                        path={match.url}
+                        exact={true}
+                    />
+                    <Route
+                        path={`${match.url}/:campaignID`}
+                        render={({ match, ...props }: RouteComponentProps<{ campaignID: string }>) => (
+                            <CampaignDetails {...outerProps} {...props} campaignID={match.params.campaignID} />
+                        )}
+                    />
+                    {outerProps.authenticatedUser.siteAdmin && (
+                        <>
+                            <Route
+                                path={`${match.url}/create`}
+                                render={props => <CreateCampaign {...outerProps} {...props} />}
+                                exact={true}
+                            />
+                            <Route
+                                path={`${match.url}/cli`}
+                                render={props => <CampaignCliHelp {...outerProps} {...props} />}
+                                exact={true}
+                            />
+                            <Route
+                                path={`${match.url}/new`}
+                                render={props => <CampaignDetails {...outerProps} {...props} />}
+                                exact={true}
+                            />
+                            <Route
+                                path={`${match.url}/update`}
+                                render={props => <CampaignUpdateSelection {...outerProps} {...props} />}
+                                exact={true}
+                            />
+                        </>
+                    )}
+                </Switch>
+                {/* eslint-enable react/jsx-no-bind */}
+            </>
+        )
     } else if (outerProps.authenticatedUser.siteAdmin) {
         content = <CampaignsSiteAdminMarketingPage {...outerProps} />
     } else {
-        content = <CampaignsUserMarketingPage {...outerProps} enableReadAccess={false} />
+        content = <CampaignsUserMarketingPage {...outerProps} />
     }
     return <div className="container mt-4">{content}</div>
 })

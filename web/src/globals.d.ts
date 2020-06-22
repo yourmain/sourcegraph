@@ -79,7 +79,7 @@ interface SourcegraphContext
         import('./schema/site.schema').SiteConfiguration,
         | 'auth.public'
         | 'update.channel'
-        | 'campaigns.readAccess.enabled'
+        | 'campaigns.enabled'
         | 'disableNonCriticalTelemetry'
         | 'permissions.backgroundSync'
     >

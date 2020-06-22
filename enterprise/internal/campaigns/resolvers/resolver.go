@@ -25,6 +25,7 @@ import (
 )
 
 var ErrIDIsZero = errors.New("invalid node id")
+var ErrCampaignsDisabled = errors.New("campaigns are disabled. Set 'campaigns.enabled' in the site-configuration to enable the feature.")
 
 // Resolver is the GraphQL resolver of all things related to Campaigns.
 type Resolver struct {
@@ -37,22 +38,15 @@ func NewResolver(db *sql.DB) graphqlbackend.CampaignsResolver {
 	return &Resolver{store: ee.NewStore(db)}
 }
 
-func allowReadAccess(ctx context.Context) error {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access changesets.
-	if readAccess := conf.CampaignsReadAccessEnabled(); readAccess {
+func campaignsEnabled() error {
+	if enabled := conf.CampaignsEnabled(); enabled {
 		return nil
 	}
-
-	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return ErrCampaignsDisabled
 }
 
 func (r *Resolver) ChangesetByID(ctx context.Context, id graphql.ID) (graphqlbackend.ChangesetResolver, error) {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access changesets.
-	if err := allowReadAccess(ctx); err != nil {
+	if err := campaignsEnabled(); err != nil {
 		return nil, err
 	}
 
@@ -98,8 +92,7 @@ func (r *Resolver) ChangesetByID(ctx context.Context, id graphql.ID) (graphqlbac
 }
 
 func (r *Resolver) CampaignByID(ctx context.Context, id graphql.ID) (graphqlbackend.CampaignResolver, error) {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access campaign.
-	if err := allowReadAccess(ctx); err != nil {
+	if err := campaignsEnabled(); err != nil {
 		return nil, err
 	}
 
@@ -124,8 +117,7 @@ func (r *Resolver) CampaignByID(ctx context.Context, id graphql.ID) (graphqlback
 }
 
 func (r *Resolver) PatchByID(ctx context.Context, id graphql.ID) (graphqlbackend.PatchInterfaceResolver, error) {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access patches.
-	if err := allowReadAccess(ctx); err != nil {
+	if err := campaignsEnabled(); err != nil {
 		return nil, err
 	}
 
@@ -160,8 +152,7 @@ func (r *Resolver) PatchByID(ctx context.Context, id graphql.ID) (graphqlbackend
 }
 
 func (r *Resolver) PatchSetByID(ctx context.Context, id graphql.ID) (graphqlbackend.PatchSetResolver, error) {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access patch sets.
-	if err := allowReadAccess(ctx); err != nil {
+	if err := campaignsEnabled(); err != nil {
 		return nil, err
 	}
 
@@ -186,6 +177,10 @@ func (r *Resolver) PatchSetByID(ctx context.Context, id graphql.ID) (graphqlback
 }
 
 func (r *Resolver) AddChangesetsToCampaign(ctx context.Context, args *graphqlbackend.AddChangesetsToCampaignArgs) (_ graphqlbackend.CampaignResolver, err error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	campaignID, err := campaigns.UnmarshalCampaignID(args.Campaign)
 	if err != nil {
 		return nil, err
@@ -223,6 +218,10 @@ func (r *Resolver) AddChangesetsToCampaign(ctx context.Context, args *graphqlbac
 }
 
 func (r *Resolver) CreateCampaign(ctx context.Context, args *graphqlbackend.CreateCampaignArgs) (graphqlbackend.CampaignResolver, error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	var err error
 	tr, ctx := trace.New(ctx, "Resolver.CreateCampaign", args.Input.Name)
 	defer func() {
@@ -282,6 +281,10 @@ func (r *Resolver) CreateCampaign(ctx context.Context, args *graphqlbackend.Crea
 }
 
 func (r *Resolver) UpdateCampaign(ctx context.Context, args *graphqlbackend.UpdateCampaignArgs) (_ graphqlbackend.CampaignResolver, err error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	tr, ctx := trace.New(ctx, "Resolver.UpdateCampaign", fmt.Sprintf("Campaign: %q", args.Input.ID))
 	defer func() {
 		tr.SetError(err)
@@ -332,6 +335,10 @@ func (r *Resolver) UpdateCampaign(ctx context.Context, args *graphqlbackend.Upda
 }
 
 func (r *Resolver) DeleteCampaign(ctx context.Context, args *graphqlbackend.DeleteCampaignArgs) (_ *graphqlbackend.EmptyResponse, err error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	tr, ctx := trace.New(ctx, "Resolver.DeleteCampaign", fmt.Sprintf("Campaign: %q", args.Campaign))
 	defer func() {
 		tr.SetError(err)
@@ -354,6 +361,10 @@ func (r *Resolver) DeleteCampaign(ctx context.Context, args *graphqlbackend.Dele
 }
 
 func (r *Resolver) RetryCampaignChangesets(ctx context.Context, args *graphqlbackend.RetryCampaignChangesetsArgs) (graphqlbackend.CampaignResolver, error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	var err error
 	tr, ctx := trace.New(ctx, "Resolver.RetryCampaignChangesets", fmt.Sprintf("Campaign: %q", args.Campaign))
 	defer func() {
@@ -381,8 +392,7 @@ func (r *Resolver) RetryCampaignChangesets(ctx context.Context, args *graphqlbac
 }
 
 func (r *Resolver) Campaigns(ctx context.Context, args *graphqlbackend.ListCampaignArgs) (graphqlbackend.CampaignsConnectionResolver, error) {
-	// 🚨 SECURITY: Only site admins or users when read-access is enabled may access campaign.
-	if err := allowReadAccess(ctx); err != nil {
+	if err := campaignsEnabled(); err != nil {
 		return nil, err
 	}
 	opts := ee.ListCampaignsOpts{
@@ -415,6 +425,10 @@ func (r *Resolver) Campaigns(ctx context.Context, args *graphqlbackend.ListCampa
 }
 
 func (r *Resolver) CreateChangesets(ctx context.Context, args *graphqlbackend.CreateChangesetsArgs) (_ []graphqlbackend.ExternalChangesetResolver, err error) {
+	if err := campaignsEnabled(); err != nil {
+		return nil, err
+	}
+
 	// 🚨 SECURITY: Only site admins may create changesets for now
 	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
 		return nil, err

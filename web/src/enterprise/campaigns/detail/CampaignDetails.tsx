@@ -510,7 +510,7 @@ export const CampaignDetails: React.FunctionComponent<Props> = ({
                     </>
                 )}
             </Form>
-            {/* Iff either campaign XOR patchset are present */}
+            {/* If either campaign XOR patchset are present */}
             {!(campaign && patchSet) && (campaign || patchSet) && (
                 <>
                     {campaign && !['saving', 'editing'].includes(mode) && (

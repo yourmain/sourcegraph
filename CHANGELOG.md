@@ -16,6 +16,8 @@ All notable changes to Sourcegraph are documented in this file.
 ### Changed
 
 - Some monitoring alerts now have more useful descriptions. [#11542](https://github.com/sourcegraph/sourcegraph/pull/11542)
+- The campaigns feature is now enabled by default for all users. It can be disabled by setting `campaigns.enabled` to `false` in the site configuration.
+  - The site configuration properties `campaigns.readAccess`, `automation.readAccess.enabled`, and `"experimentalFeatures": { "automation": "enabled" }}` are deprecated and without any effect.
 
 ### Fixed
 
