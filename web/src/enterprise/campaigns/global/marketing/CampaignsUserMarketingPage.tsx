@@ -1,7 +1,7 @@
 import React from 'react'
 import { CampaignsMarketing } from './CampaignsMarketing'
 
-export const CampaignsUserMarketingPage: React.FunctionComponent = () => (
+export const CampaignsUserMarketingPage: React.FunctionComponent<{}> = () => (
     <CampaignsMarketing
         body={
             <section className="my-3">
