@@ -1057,7 +1057,7 @@ type SiteConfiguration struct {
 	// Only available in Sourcegraph Enterprise.
 	Branding *Branding `json:"branding,omitempty"`
 	// CampaignsEnabled description: Enables/disables the campaigns feature.
-	CampaignsEnabled bool `json:"campaigns.enabled,omitempty"`
+	CampaignsEnabled *bool `json:"campaigns.enabled,omitempty"`
 	// CampaignsReadAccessEnabled description: DEPRECATED: Enables read-only access to campaigns for non-site-admin users. This doesn't have an effect anymore.
 	CampaignsReadAccessEnabled *bool `json:"campaigns.readAccess.enabled,omitempty"`
 	// CorsOrigin description: Required when using any of the native code host integrations for Phabricator, GitLab, or Bitbucket Server. It is a space-separated list of allowed origins for cross-origin HTTP requests which should be the base URL for your Phabricator, GitLab, or Bitbucket Server instance.

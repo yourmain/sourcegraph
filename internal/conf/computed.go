@@ -228,7 +228,10 @@ func SymbolIndexEnabled() bool {
 }
 
 func CampaignsEnabled() bool {
-	return Get().CampaignsEnabled
+	if enabled := Get().CampaignsEnabled; enabled != nil {
+		return *enabled
+	}
+	return true
 }
 
 func ExternalURL() string {

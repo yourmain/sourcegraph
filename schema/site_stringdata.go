@@ -246,7 +246,7 @@ const SiteSchemaJSON = `{
     "campaigns.enabled": {
       "description": "Enables/disables the campaigns feature.",
       "type": "boolean",
-      "default": true,
+      "!go": { "pointer": true },
       "group": "Campaigns"
     },
     "campaigns.readAccess.enabled": {
