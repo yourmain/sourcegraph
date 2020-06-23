@@ -228,10 +228,7 @@ func SymbolIndexEnabled() bool {
 }
 
 func CampaignsEnabled() bool {
-	if v := Get().SearchIndexEnabled; v != nil {
-		return *v
-	}
-	return true
+	return Get().CampaignsEnabled
 }
 
 func ExternalURL() string {

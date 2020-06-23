@@ -41,6 +41,11 @@ func NewResolver(db *sql.DB) graphqlbackend.CampaignsResolver {
 }
 
 func campaignsEnabled() error {
+	// On Sourcegraph.com nobody can read/create campaign entities
+	if envvar.SourcegraphDotComMode() {
+		return ErrCampaignsDotCom
+	}
+
 	if enabled := conf.CampaignsEnabled(); enabled {
 		return nil
 	}
