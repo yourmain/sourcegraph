@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/inconshreveable/log15"
 	"github.com/sourcegraph/sourcegraph/internal/search/query/syntax"
 	"github.com/sourcegraph/sourcegraph/internal/search/query/types"
 )
@@ -207,6 +208,7 @@ func (q AndOrQuery) valueToTypedValue(field, value string, label labels) []*type
 			return []*types.Value{{Regexp: regexp}}
 		}
 		// If the regexp does not compile, treat it as a string.
+		log15.Info("fail", "compile", value)
 		return []*types.Value{{String: &value}}
 
 	case

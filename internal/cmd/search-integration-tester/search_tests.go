@@ -59,7 +59,7 @@ var tests = []test{
 	// Global simple text search.
 	{
 		Name:  `Global search, zero results`,
-		Query: `asdfalksd+jflaksjdfklas patterntype:literal`,
+		Query: `asdfalksd+jflaksjdfklas patterntype:literal -repo:^github\.com/sourcegraph/sourcegraph$`,
 	},
 	{
 		Name:  `Global search, double-quoted pattern, nonzero result`,

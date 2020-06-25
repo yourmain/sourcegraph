@@ -3,8 +3,11 @@ package query
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/inconshreveable/log15"
 )
 
 // SubstituteAliases substitutes field name aliases for their canonical names.
@@ -137,6 +140,7 @@ func substituteOrForRegexp(nodes []Node) []Node {
 		}
 		return false
 	}
+	isSet := func(l, label labels) bool { return l&label != 0 }
 	new := []Node{}
 	for _, node := range nodes {
 		switch v := node.(type) {
@@ -145,7 +149,14 @@ func substituteOrForRegexp(nodes []Node) []Node {
 				patterns, rest := partition(v.Operands, isPattern)
 				var values []string
 				for _, node := range patterns {
-					values = append(values, node.(Pattern).Value)
+					// FIXME quoted in regexp mode implies same.
+					value := node.(Pattern).Value
+					log15.Info("v", "value", value)
+					if isSet(node.(Pattern).Annotation.Labels, Literal) {
+						log15.Info("v", "quoted", value)
+						value = regexp.QuoteMeta(value)
+					}
+					values = append(values, value)
 				}
 				valueString := "(" + strings.Join(values, ")|(") + ")"
 				new = append(new, Pattern{Value: valueString})
@@ -217,6 +228,10 @@ func substituteConcat(nodes []Node, separator string) []Node {
 
 	}
 	return new
+}
+
+func substituteSpace(nodes []Node) []Node {
+	return substituteConcat(nodes, " ")
 }
 
 // Map pipes query through one or more query transformer functions.
