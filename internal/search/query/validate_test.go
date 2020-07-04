@@ -1,13 +1,6 @@
 package query
 
-import (
-	"strings"
-	"testing"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/sourcegraph/sourcegraph/internal/search/query/types"
-)
-
+/*
 func TestAndOrQuery_Validation(t *testing.T) {
 	cases := []struct {
 		input string
@@ -267,3 +260,4 @@ func TestForAll(t *testing.T) {
 		t.Errorf("Expected all nodes to be parameters.")
 	}
 }
+*/
