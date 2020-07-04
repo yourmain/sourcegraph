@@ -1,6 +1,13 @@
 package query
 
-/*
+import (
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/sourcegraph/sourcegraph/internal/search/query/types"
+)
+
 func TestAndOrQuery_Validation(t *testing.T) {
 	cases := []struct {
 		input string
@@ -170,7 +177,7 @@ func TestPartitionSearchPattern(t *testing.T) {
 		},
 		{
 			input: "file:foo (x y)",
-			want:  `"file:foo" (concat "(x" "y)")`,
+			want:  `"file:foo" "(x y)"`,
 		},
 		{
 			input: "(file:foo x) y",
@@ -260,4 +267,3 @@ func TestForAll(t *testing.T) {
 		t.Errorf("Expected all nodes to be parameters.")
 	}
 }
-*/

@@ -1,6 +1,12 @@
 package query
 
-/*
+import (
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+)
+
 func prettyPrint(nodes []Node) string {
 	var resultStr []string
 	for _, node := range nodes {
@@ -282,4 +288,3 @@ func TestMap(t *testing.T) {
 		})
 	}
 }
-*/
