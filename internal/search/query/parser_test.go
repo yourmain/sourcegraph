@@ -378,7 +378,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:         "(a) repo:foo (b)",
 			WantGrammar:   Spec(`(and "repo:foo" (concat "a" "b"))`),
-			WantHeuristic: `(and "repo:foo" (concat "(a)" "(b)"))`,
+			WantHeuristic: Diff(`(and "repo:foo" (concat "(a)" "(b)"))`),
 		},
 		{
 			Input:         "repo:foo main { and bar {",
@@ -387,6 +387,11 @@ func TestParse(t *testing.T) {
 		},
 		{
 			Input:         "a b (repo:foo c d)",
+			WantGrammar:   `(concat "a" "b" (and "repo:foo" (concat "c" "d")))`,
+			WantHeuristic: Same,
+		},
+		{
+			Input:         "a b (c d repo:foo)",
 			WantGrammar:   `(concat "a" "b" (and "repo:foo" (concat "c" "d")))`,
 			WantHeuristic: Same,
 		},
@@ -600,7 +605,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:         `(`,
 			WantGrammar:   Spec(`expected operand at 1`),
-			WantHeuristic: Same, // Doesn't work as expected.
+			WantHeuristic: Same, // Doesn't work as expected, but because I turned that off. Reintroduce in a different way.
 		},
 		{
 			Input:         `)(())(`,
