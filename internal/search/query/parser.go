@@ -591,6 +591,20 @@ loop:
 		}
 		switch {
 		case p.match(LPAREN):
+			if isSet(p.heuristics, parensAsPatterns) {
+				if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
+					p.pos += advance
+					pattern := Pattern{
+						Value:   value,
+						Negated: false,
+						Annotation: Annotation{
+							Labels: Literal | HeuristicParensAsPatterns,
+						},
+					}
+					nodes = append(nodes, pattern)
+					continue
+				}
+			}
 			// If the above failed, we treat this paren
 			// group as part of an and/or expression.
 			_ = p.expect(LPAREN) // Guaranteed to succeed.

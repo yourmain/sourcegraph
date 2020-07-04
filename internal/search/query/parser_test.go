@@ -305,7 +305,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:         "(f(x)oo((a|b))bar)",
 			WantGrammar:   Spec(`(concat "f" "x" "oo" "a|b" "bar")`),
-			WantHeuristic: Same,
+			WantHeuristic: `"(f(x)oo((a|b))bar)"`,
 		},
 		{
 			Input:         "aorb",
@@ -362,7 +362,7 @@ func TestParse(t *testing.T) {
 			Name:          "Paren reduction over operators",
 			Input:         "(((a b c))) and d",
 			WantGrammar:   Spec(`(and (concat "a" "b" "c") "d")`),
-			WantHeuristic: Same,
+			WantHeuristic: `(and "(((a b c)))" "d")`,
 		},
 		// Partition parameters and concatenated patterns.
 		{
@@ -373,12 +373,12 @@ func TestParse(t *testing.T) {
 		{
 			Input:         "(a b c) and (d e f) and (g h i)",
 			WantGrammar:   Spec(`(and (concat "a" "b" "c") (concat "d" "e" "f") (concat "g" "h" "i"))`),
-			WantHeuristic: Same,
+			WantHeuristic: `(and "(a b c)" "(d e f)" "(g h i)")`,
 		},
 		{
 			Input:         "(a) repo:foo (b)",
 			WantGrammar:   Spec(`(and "repo:foo" (concat "a" "b"))`),
-			WantHeuristic: Same,
+			WantHeuristic: `(and "repo:foo" (concat "(a)" "(b)"))`,
 		},
 		{
 			Input:         "repo:foo main { and bar {",
@@ -482,37 +482,37 @@ func TestParse(t *testing.T) {
 			Name:          "nested paren reduction with whitespace",
 			Input:         "(((a b c))) d",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d")`),
-			WantHeuristic: Same,
+			WantHeuristic: Diff(`(concat "(((a b c)))" "d")`),
 		},
 		{
 			Name:          "left paren reduction with whitespace",
 			Input:         "(a b) c d",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d")`),
-			WantHeuristic: Same,
+			WantHeuristic: `(concat "(a b)" "c" "d")`,
 		},
 		{
 			Name:          "right paren reduction with whitespace",
 			Input:         "a b (c d)",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d")`),
-			WantHeuristic: Same,
+			WantHeuristic: Diff(`(concat "a" "b" "(c d)")`),
 		},
 		{
 			Name:          "grouped paren reduction with whitespace",
 			Input:         "(a b) (c d)",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d")`),
-			WantHeuristic: Same,
+			WantHeuristic: Diff(`(concat "(a b)" "(c d)")`),
 		},
 		{
 			Name:          "multiple grouped paren reduction with whitespace",
 			Input:         "(a b) (c d) (e f)",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d" "e" "f")`),
-			WantHeuristic: Same,
+			WantHeuristic: `(concat "(a b)" "(c d)" "(e f)")`,
 		},
 		{
 			Name:          "interpolated grouped paren reduction",
 			Input:         "(a b) c d (e f)",
 			WantGrammar:   Spec(`(concat "a" "b" "c" "d" "e" "f")`),
-			WantHeuristic: Same,
+			WantHeuristic: Diff(`(concat "(a b)" "c" "d" "(e f)")`),
 		},
 		{
 			Name:          "mixed interpolated grouped paren reduction",
@@ -531,25 +531,25 @@ func TestParse(t *testing.T) {
 			Name:          "paren inside contiguous string",
 			Input:         "foo()bar",
 			WantGrammar:   Spec(`(concat "foo" "bar")`),
-			WantHeuristic: Diff(`(concat "foo" "()" "bar")`),
+			WantHeuristic: Diff(`(concat "foo" "()bar")`), // this is the one we should cover with 'whitespace seen'.
 		},
 		{
 			Name:          "paren containing whitespace inside contiguous string",
 			Input:         "foo(   )bar",
 			WantGrammar:   Diff(`(concat "foo" "bar")`),
-			WantHeuristic: Diff(`(concat "foo" "()" "bar")`),
+			WantHeuristic: `(concat "foo" "(   )bar")`,
 		},
 		{
 			Name:          "nested empty paren",
 			Input:         "(x())",
 			WantGrammar:   Spec(`"x"`),
-			WantHeuristic: Diff(`(concat "x" "()")`),
+			WantHeuristic: `"(x())"`,
 		},
 		{
 			Name:          "interpolated nested empty paren",
 			Input:         "(()x(  )(())())",
 			WantGrammar:   Spec(`"x"`),
-			WantHeuristic: Diff(`(concat "()" "x" "()" "()" "()")`),
+			WantHeuristic: Diff(`"(()x(  )(())())"`),
 		},
 		{
 			Name:          "empty paren on or",
@@ -561,19 +561,13 @@ func TestParse(t *testing.T) {
 			Name:          "empty left paren on or",
 			Input:         "() or (x)",
 			WantGrammar:   Spec(`"x"`),
-			WantHeuristic: Diff(`(or "()" "x")`),
-		},
-		{
-			Name:          "empty left paren on or",
-			Input:         "() or (x)",
-			WantGrammar:   Spec(`"x"`),
-			WantHeuristic: Diff(`(or "()" "x")`),
+			WantHeuristic: Diff(`(or "()" "(x)")`),
 		},
 		{
 			Name:          "complex interpolated nested empty paren",
 			Input:         "(()x(  )(y or () or (f))())",
 			WantGrammar:   Spec(`(concat "x" (or "y" "f"))`),
-			WantHeuristic: Diff(`(concat "()" "x" "()" (or "y" "()" "f") "()")`),
+			WantHeuristic: Diff(`(concat "()" "x" "()" (or "y" "()" "(f)") "()")`),
 		},
 		{
 			Name:          "disable parens as patterns heuristic if containing recognized operator",
