@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store/base"
 	"github.com/sourcegraph/sourcegraph/internal/db/dbconn"
 	"github.com/sourcegraph/sourcegraph/internal/db/dbtesting"
 	"github.com/sourcegraph/sourcegraph/internal/observation"
@@ -11,7 +12,7 @@ func init() {
 }
 
 func rawTestStore() *store {
-	return &store{db: dbconn.Global}
+	return &store{Store: base.NewWithHandle(dbconn.Global)}
 }
 
 func testStore() Store {

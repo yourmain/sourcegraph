@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/keegancsmith/sqlf"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store/workqueue"
 )
 
 // Index is a subset of the lsif_indexes table and stores both processed and unprocessed
@@ -269,25 +270,17 @@ var indexColumnsWithNullRank = []*sqlf.Query{
 // closed. If there is no such unlocked index, a zero-value index and nil store will be returned along with
 // a false valued flag. This method must not be called from within a transaction.
 func (s *store) DequeueIndex(ctx context.Context) (Index, Store, bool, error) {
-	index, tx, ok, err := s.dequeueRecord(
-		ctx,
-		"lsif_indexes_with_repository_name",
-		"lsif_indexes",
-		indexColumnsWithNullRank,
-		sqlf.Sprintf("queued_at"),
-		nil,
-		scanFirstIndexInterface,
-	)
+	index, tx, ok, err := s.makeIndexWorkQueueStore().Dequeue(ctx)
 	if err != nil || !ok {
-		return Index{}, tx, ok, err
+		return Index{}, nil, false, err
 	}
 
-	return index.(Index), tx, true, nil
+	return index.(Index), s.Use(tx), true, nil
 }
 
 // RequeueIndex updates the state of the index to queued and adds a processing delay before the next dequeue attempt.
 func (s *store) RequeueIndex(ctx context.Context, id int, after time.Time) error {
-	return s.queryForEffect(ctx, sqlf.Sprintf(`UPDATE lsif_indexes SET state = 'queued', process_after = %s WHERE id = %s`, after, id))
+	return s.makeIndexWorkQueueStore().Requeue(ctx, id, after)
 }
 
 // DeleteIndexByID deletes an index by its identifier.
@@ -333,6 +326,14 @@ func (s *store) DeleteIndexesWithoutRepository(ctx context.Context, now time.Tim
 	`, now.UTC(), DeletedRepositoryGracePeriod/time.Second)))
 }
 
+// ResetStalledIndexes moves all unlocked index processing for more than `StalledIndexMaxAge` back to the
+// queued state. In order to prevent input that continually crashes indexer instances, indexes that have
+// been reset more than IndexMaxNumResets times will be marked as errored. This method returns a list of
+// updated and errored index identifiers.
+func (s *store) ResetStalledIndexes(ctx context.Context, now time.Time) ([]int, []int, error) {
+	return s.makeIndexWorkQueueStore().ResetStalled(ctx, now)
+}
+
 // StalledIndexMaxAge is the maximum allowable duration between updating the state of an
 // index as "processing" and locking the index row during processing. An unlocked row that
 // is marked as processing likely indicates that the indexer that dequeued the index has
@@ -344,50 +345,15 @@ const StalledIndexMaxAge = time.Second * 5
 // "queued" on its next reset.
 const IndexMaxNumResets = 3
 
-// ResetStalledIndexes moves all unlocked index processing for more than `StalledIndexMaxAge` back to the
-// queued state. In order to prevent input that continually crashes indexer instances, indexes that have
-// been reset more than IndexMaxNumResets times will be marked as errored. This method returns a list of
-// updated and errored index identifiers.
-func (s *store) ResetStalledIndexes(ctx context.Context, now time.Time) ([]int, []int, error) {
-	resetIDs, err := scanInts(s.query(
-		ctx,
-		sqlf.Sprintf(`
-			UPDATE lsif_indexes u
-			SET state = 'queued', started_at = null, num_resets = num_resets + 1
-			WHERE id = ANY(
-				SELECT id FROM lsif_indexes_with_repository_name
-				WHERE
-					state = 'processing' AND
-					%s - started_at > (%s * interval '1 second') AND
-					num_resets < %s
-				FOR UPDATE SKIP LOCKED
-			)
-			RETURNING u.id
-		`, now.UTC(), StalledIndexMaxAge/time.Second, IndexMaxNumResets),
-	))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	erroredIDs, err := scanInts(s.query(
-		ctx,
-		sqlf.Sprintf(`
-			UPDATE lsif_indexes u
-			SET state = 'errored', finished_at = clock_timestamp(), failure_message = 'failed to process'
-			WHERE id = ANY(
-				SELECT id FROM lsif_indexes_with_repository_name
-				WHERE
-					state = 'processing' AND
-					%s - started_at > (%s * interval '1 second') AND
-					num_resets >= %s
-				FOR UPDATE SKIP LOCKED
-			)
-			RETURNING u.id
-		`, now.UTC(), StalledIndexMaxAge/time.Second, IndexMaxNumResets),
-	))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return resetIDs, erroredIDs, nil
+func (s *store) makeIndexWorkQueueStore() *workqueue.Store {
+	return workqueue.NewStore(s.Handle(), workqueue.StoreOptions{
+		TableName:            "lsif_indexes",
+		ViewName:             "lsif_indexes_with_repository_name u",
+		ColumnExpressions:    indexColumnsWithNullRank,
+		Scan:                 scanFirstIndexInterface,
+		OrderByExpression:    sqlf.Sprintf("queued_at"),
+		AdditionalConditions: []*sqlf.Query{},
+		StalledMaxAge:        StalledIndexMaxAge,
+		MaxNumResets:         IndexMaxNumResets,
+	})
 }

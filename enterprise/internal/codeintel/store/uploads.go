@@ -8,6 +8,7 @@ import (
 	"github.com/keegancsmith/sqlf"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store/workqueue"
 )
 
 // Upload is a subset of the lsif_uploads table and stores both processed and unprocessed
@@ -397,25 +398,17 @@ var uploadColumnsWithNullRank = []*sqlf.Query{
 // This transaction must be closed. If there is no such unlocked upload, a zero-value upload and nil store will
 // be returned along with a false valued flag. This method must not be called from within a transaction.
 func (s *store) Dequeue(ctx context.Context, maxSize int) (Upload, Store, bool, error) {
-	upload, tx, ok, err := s.dequeueRecord(
-		ctx,
-		"lsif_uploads_with_repository_name",
-		"lsif_uploads",
-		uploadColumnsWithNullRank,
-		sqlf.Sprintf("uploaded_at"),
-		[]*sqlf.Query{sqlf.Sprintf("(upload_size IS NULL OR upload_size <= %s)", maxSize)},
-		scanFirstUploadInterface,
-	)
+	upload, tx, ok, err := s.makeUploadWorkQueueStore(maxSize).Dequeue(ctx)
 	if err != nil || !ok {
-		return Upload{}, tx, ok, err
+		return Upload{}, nil, false, err
 	}
 
-	return upload.(Upload), tx, true, nil
+	return upload.(Upload), s.Use(tx), true, nil
 }
 
 // Requeue updates the state of the upload to queued and adds a processing delay before the next dequeue attempt.
 func (s *store) Requeue(ctx context.Context, id int, after time.Time) error {
-	return s.queryForEffect(ctx, sqlf.Sprintf(`UPDATE lsif_uploads SET state = 'queued', process_after = %s WHERE id = %s`, after, id))
+	return s.makeUploadWorkQueueStore(0).Requeue(ctx, id, after)
 }
 
 // GetStates returns the states for the uploads with the given identifiers.
@@ -494,6 +487,17 @@ func (s *store) DeleteUploadsWithoutRepository(ctx context.Context, now time.Tim
 	`, now.UTC(), DeletedRepositoryGracePeriod/time.Second)))
 }
 
+// ResetStalled moves all unlocked uploads processing for more than `StalledUploadMaxAge` back to the queued state.
+// In order to prevent input that continually crashes worker instances, uploads that have been reset more than
+// UploadMaxNumResets times will be marked as errored. This method returns a list of updated and errored upload
+// identifiers.
+func (s *store) ResetStalled(ctx context.Context, now time.Time) ([]int, []int, error) {
+	return s.makeUploadWorkQueueStore(0).ResetStalled(ctx, now)
+}
+
+//
+//
+
 // StalledUploadMaxAge is the maximum allowable duration between updating the state of an
 // upload as "processing" and locking the upload row during processing. An unlocked row that
 // is marked as processing likely indicates that the worker that dequeued the upload has died.
@@ -505,50 +509,18 @@ const StalledUploadMaxAge = time.Second * 5
 // "queued" on its next reset.
 const UploadMaxNumResets = 3
 
-// ResetStalled moves all unlocked uploads processing for more than `StalledUploadMaxAge` back to the queued state.
-// In order to prevent input that continually crashes worker instances, uploads that have been reset more than
-// UploadMaxNumResets times will be marked as errored. This method returns a list of updated and errored upload
-// identifiers.
-func (s *store) ResetStalled(ctx context.Context, now time.Time) ([]int, []int, error) {
-	resetIDs, err := scanInts(s.query(
-		ctx,
-		sqlf.Sprintf(`
-			UPDATE lsif_uploads u
-			SET state = 'queued', started_at = null, num_resets = num_resets + 1
-			WHERE id = ANY(
-				SELECT id FROM lsif_uploads_with_repository_name
-				WHERE
-					state = 'processing' AND
-					%s - started_at > (%s * interval '1 second') AND
-					num_resets < %s
-				FOR UPDATE SKIP LOCKED
-			)
-			RETURNING u.id
-		`, now.UTC(), StalledUploadMaxAge/time.Second, UploadMaxNumResets),
-	))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	erroredIDs, err := scanInts(s.query(
-		ctx,
-		sqlf.Sprintf(`
-			UPDATE lsif_uploads u
-			SET state = 'errored', finished_at = clock_timestamp(), failure_message = 'failed to process'
-			WHERE id = ANY(
-				SELECT id FROM lsif_uploads_with_repository_name
-				WHERE
-					state = 'processing' AND
-					%s - started_at > (%s * interval '1 second') AND
-					num_resets >= %s
-				FOR UPDATE SKIP LOCKED
-			)
-			RETURNING u.id
-		`, now.UTC(), StalledUploadMaxAge/time.Second, UploadMaxNumResets),
-	))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return resetIDs, erroredIDs, nil
+func (s *store) makeUploadWorkQueueStore(maxSize int) *workqueue.Store {
+	return workqueue.NewStore(s.Handle(), workqueue.StoreOptions{
+		TableName:         "lsif_uploads",
+		ViewName:          "lsif_uploads_with_repository_name u",
+		ColumnExpressions: uploadColumnsWithNullRank,
+		Scan:              scanFirstUploadInterface,
+		OrderByExpression: sqlf.Sprintf("uploaded_at"),
+		// TODO - these need to be supplied at query time instead (turns out)
+		AdditionalConditions: []*sqlf.Query{
+			sqlf.Sprintf("upload_size IS NULL OR upload_size <= %s", maxSize),
+		},
+		StalledMaxAge: StalledUploadMaxAge,
+		MaxNumResets:  UploadMaxNumResets,
+	})
 }
