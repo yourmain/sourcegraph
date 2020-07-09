@@ -953,28 +953,105 @@ func (r *searchResolver) evaluate(ctx context.Context, q []query.Node) (*SearchR
 	return result, nil
 }
 
-func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, error) {
-	settings, err := decodedViewerFinalSettings(ctx)
+// setup is a function that parameterizes search (query parsing and applying
+// user settings) that is shared by all endpoints that implement the
+// SearchImplementer interface.
+func (r *searchResolver) setup(ctx context.Context) (*SearchResultsResolver, error) {
+	searchType, err := detectSearchType(r.args.Version, r.args.PatternType, r.args.Query)
 	if err != nil {
 		return nil, err
 	}
+	r.patternType = searchType
 
-	if v := settings.SearchMigrateParser; v != nil && *v {
-		queryInfo, err := query.ProcessAndOr(r.originalQuery, r.patternType)
-		if err != nil {
-			return &SearchResultsResolver{alert: alertForQuery(r.originalQuery, err)}, nil
-		}
-		r.query = queryInfo
+	if searchType == query.SearchTypeStructural && !conf.StructuralSearchEnabled() {
+		return nil, errors.New("Structural search is disabled in the site configuration.")
 	}
 
+	var queryString string
+	if searchType == query.SearchTypeLiteral {
+		queryString = query.ConvertToLiteral(r.args.Query)
+	} else {
+		queryString = r.args.Query
+	}
+
+	var queryInfo query.QueryInfo
+	if (conf.AndOrQueryEnabled() && query.ContainsAndOrKeyword(r.args.Query)) || searchType == query.SearchTypeStructural {
+		// To process the input as an and/or query, the flag must be
+		// enabled (default is on) and must contain either an 'and' or
+		// 'or' expression. Else, fallback to the older existing parser.
+		queryInfo, err = query.ProcessAndOr(r.args.Query, searchType)
+		if err != nil {
+			return &SearchResultsResolver{alert: alertForQuery(r.args.Query, err)}, nil
+		}
+	} else {
+		queryInfo, err = query.Process(queryString, searchType)
+		if err != nil {
+			// Try parse the query with the new parser if the old one fails.
+			queryInfo, err = query.ProcessAndOr(r.args.Query, searchType)
+			if err != nil {
+				return &SearchResultsResolver{alert: alertForQuery(r.args.Query, err)}, nil
+			}
+			log15.Warn("AndOr Parser succeeded parsing previously unsupported query", "query", r.args.Query)
+		}
+	}
+
+	// If stable:truthy is specified, make the query return a stable result ordering.
+	if queryInfo.BoolValue(query.FieldStable) {
+		r.args, queryInfo, err = queryForStableResults(r.args, queryInfo)
+		if err != nil {
+			return &SearchResultsResolver{alert: alertForQuery(queryString, err)}, nil
+		}
+	}
+	r.query = queryInfo
+
+	// If the request is a paginated one, decode those arguments now.
+	var pagination *searchPaginationInfo
+	if r.args.First != nil {
+		pagination, err = processPaginationRequest(r.args, queryInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	r.pagination = pagination
+
+	/* --------------------------- */
+	/*
+		settings, err := decodedViewerFinalSettings(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if v := settings.SearchMigrateParser; v != nil && *v {
+			queryInfo, err := query.ProcessAndOr(r.originalQuery, r.patternType)
+			if err != nil {
+				return &SearchResultsResolver{alert: alertForQuery(r.originalQuery, err)}, nil
+			}
+			r.query = queryInfo
+		}
+
+		if v := settings.SearchUppercase; v != nil && *v {
+			if q, ok := r.query.(*query.AndOrQuery); ok {
+				q.Query = query.SearchUppercase(q.Query)
+				r.query = q
+			}
+		}
+	*/
+	return nil, nil
+}
+
+func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, error) {
+	alert, err := r.setup(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if alert != nil {
+		return alert, nil
+	}
 	switch q := r.query.(type) {
 	case *query.OrdinaryQuery:
 		return r.evaluateLeaf(ctx)
 	case *query.AndOrQuery:
 		// Get settings to check if `search.uppercase` is active. If so, run transformer.
-		if v := settings.SearchUppercase; v != nil && *v {
-			q.Query = query.SearchUppercase(q.Query)
-		}
 		return r.evaluate(ctx, q.Query)
 	}
 	// Unreachable.
@@ -1072,6 +1149,7 @@ func init() {
 }
 
 func (r *searchResolver) Stats(ctx context.Context) (stats *searchResultsStats, err error) {
+	r.setup(ctx)
 	// Override user context to ensure that stats for this query are cached
 	// regardless of the user context's cancellation. For example, if
 	// stats/sparklines are slow to load on the homepage and all users navigate
