@@ -10,8 +10,27 @@ import { numberWithCommas } from '../../../shared/src/util/strings'
 import { queryGraphQL } from '../backend/graphql'
 import { Timestamp } from '../components/time/Timestamp'
 
+export type GitReferenceType = Pick<GQL.IGitRef, 'id' | 'displayName' | 'url'> & {
+    target: {
+        commit: {
+            author: Pick<NonNullable<GQL.IGitRef['target']['commit']>['author'], 'date'> & {
+                person: Pick<NonNullable<GQL.IGitRef['target']['commit']>['author']['person'], 'displayName'>
+            }
+            committer:
+                | (Pick<NonNullable<NonNullable<GQL.IGitRef['target']['commit']>['committer']>, 'date'> & {
+                      person: Pick<
+                          NonNullable<NonNullable<GQL.IGitRef['target']['commit']>['committer']>['person'],
+                          'displayName'
+                      >
+                  })
+                | null
+            behindAhead: NonNullable<GQL.IGitRef['target']['commit']>['behindAhead']
+        } | null
+    }
+}
+
 interface GitReferenceNodeProps {
-    node: GQL.IGitRef
+    node: GitReferenceType
 
     /** Link URL; if undefined, node.url is used. */
     url?: string

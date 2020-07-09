@@ -80,6 +80,8 @@ interface Props
     repo: GQL.IRepository
 
     onDidUpdateExternalLinks: (externalLinks: GQL.IExternalLink[] | undefined) => void
+
+    _queryCommit?: typeof queryCommit
 }
 
 interface State extends HoverState<HoverContext, HoverMerged, ActionItemAction> {
@@ -167,10 +169,10 @@ export class RepositoryCommitPage extends React.Component<Props, State> {
                     distinctUntilChanged(
                         (a, b) => a.repo.id === b.repo.id && a.match.params.revspec === b.match.params.revspec
                     ),
-                    switchMap(({ repo, match }) =>
+                    switchMap(({ repo, match, _queryCommit }) =>
                         merge(
                             of({ commitOrError: undefined }),
-                            queryCommit({ repo: repo.id, revspec: match.params.revspec }).pipe(
+                            (_queryCommit || queryCommit)({ repo: repo.id, revspec: match.params.revspec }).pipe(
                                 catchError(error => [asError(error)]),
                                 map(commitOrError => ({ commitOrError })),
                                 tap(({ commitOrError }: { commitOrError: GQL.IGitCommit | ErrorLike }) => {

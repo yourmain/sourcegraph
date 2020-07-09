@@ -38,7 +38,7 @@ export interface RepositoryReleasesAreaPageProps {
     /**
      * The active repository.
      */
-    repo: GQL.IRepository
+    repo: Pick<GQL.IRepository, 'id'>
 }
 
 /**

@@ -4,7 +4,7 @@ import * as GQL from '../../../../shared/src/graphql/schema'
 import { FilteredConnection, FilteredConnectionQueryArgs } from '../../components/FilteredConnection'
 import { PageTitle } from '../../components/PageTitle'
 import { eventLogger } from '../../tracking/eventLogger'
-import { GitReferenceNode, queryGitReferences } from '../GitReference'
+import { GitReferenceNode, queryGitReferences, GitReferenceType } from '../GitReference'
 import { RepositoryBranchesAreaPageProps } from './RepositoryBranchesArea'
 import { Observable } from 'rxjs'
 
@@ -20,7 +20,7 @@ export class RepositoryBranchesAllPage extends React.PureComponent<Props> {
         return (
             <div className="repository-branches-page">
                 <PageTitle title="All branches" />
-                <FilteredConnection<GQL.IGitRef>
+                <FilteredConnection<GitReferenceType>
                     className=""
                     listClassName="list-group list-group-flush"
                     noun="branch"

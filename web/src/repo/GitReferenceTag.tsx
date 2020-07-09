@@ -5,7 +5,9 @@ import React from 'react'
 import * as GQL from '../../../shared/src/graphql/schema'
 
 interface Props {
-    gitReference: GQL.IGitRef
+    gitReference: Pick<GQL.IGitRef, 'prefix' | 'name' | 'displayName'> & {
+        repository: Pick<GQL.IGitRef['repository'], 'name'>
+    }
 
     /**
      * Called when the mousedown event is triggered on the element.
