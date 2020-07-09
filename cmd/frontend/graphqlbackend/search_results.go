@@ -954,6 +954,17 @@ func (r *searchResolver) evaluate(ctx context.Context, q []query.Node) (*SearchR
 }
 
 func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, error) {
+	if (conf.AndOrQueryEnabled() && query.ContainsAndOrKeyword(r.originalQuery)) || r.patternType == query.SearchTypeStructural {
+		// To process the input as an and/or query, the flag must be
+		// enabled (default is on) and must contain either an 'and' or
+		// 'or' expression. Else, fallback to the older existing parser.
+		queryInfo, err := query.ProcessAndOr(r.originalQuery, r.patternType)
+		if err != nil {
+			return &SearchResultsResolver{alert: alertForQuery(r.originalQuery, err)}, nil
+		}
+		r.query = queryInfo
+	}
+
 	switch q := r.query.(type) {
 	case *query.OrdinaryQuery:
 		return r.evaluateLeaf(ctx)

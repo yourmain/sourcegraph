@@ -89,20 +89,9 @@ func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
 		queryString = args.Query
 	}
 
-	var queryInfo query.QueryInfo
-	if (conf.AndOrQueryEnabled() && query.ContainsAndOrKeyword(args.Query)) || searchType == query.SearchTypeStructural {
-		// To process the input as an and/or query, the flag must be
-		// enabled (default is on) and must contain either an 'and' or
-		// 'or' expression. Else, fallback to the older existing parser.
-		queryInfo, err = query.ProcessAndOr(args.Query, searchType)
-		if err != nil {
-			return alertForQuery(args.Query, err), nil
-		}
-	} else {
-		queryInfo, err = query.Process(queryString, searchType)
-		if err != nil {
-			return alertForQuery(queryString, err), nil
-		}
+	queryInfo, err := query.Process(queryString, searchType)
+	if err != nil {
+		return alertForQuery(queryString, err), nil
 	}
 
 	// If stable:truthy is specified, make the query return a stable result ordering.

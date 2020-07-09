@@ -88,15 +88,12 @@ func TestStructuralSearchRepoFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	q, err := query.ParseAndCheck(`patterntype:structural index:only foo`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	testInput := `patterntype:structural index:only foo`
 	resolver := &searchResolver{
-		query:        q,
-		patternType:  query.SearchTypeStructural,
-		zoekt:        z,
-		searcherURLs: endpoint.Static("test"),
+		originalQuery: testInput,
+		patternType:   query.SearchTypeStructural,
+		zoekt:         z,
+		searcherURLs:  endpoint.Static("test"),
 	}
 	results, err := resolver.Results(ctx)
 	if err != nil {
