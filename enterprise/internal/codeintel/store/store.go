@@ -199,7 +199,6 @@ type GetTipCommitFunc func(ctx context.Context, repositoryID int) (string, error
 
 type store struct {
 	*base.Store
-	// db           dbutil.DB
 	savepointIDs []string
 }
 

@@ -22,6 +22,7 @@ type StoreOptions struct {
 	//
 	// The target table (and the target view referenced by `ViewName`) must have the following columns
 	// and types:
+
 	//   - id: integer primary key
 	//   - state: an enum type containing at least `queued`, `processing`, and `errored`
 	//   - failure_message: text

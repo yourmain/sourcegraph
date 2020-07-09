@@ -81,6 +81,7 @@ func (s *Store) Handle() dbutil.DB {
 //
 //     txn1 := store1.Transact(ctx) // Creates a transaction
 //     txn2 := store2.Use(txn1)     // References the same transaction
+
 //     txn1.A(ctx) // Occurs within shared transaction
 //     txn2.B(ctx) // Occurs within shared transaction
 //     txn1.Done() // closes shared transaction
