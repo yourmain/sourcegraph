@@ -112,7 +112,7 @@ func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, 
 		cond = sqlf.Sprintf(`%s LIKE (d.root || '%%%%') OR d.root LIKE (%s || '%%%%')`, path, path)
 	}
 
-	ids, err := scanInts(tx.Query(
+	ids, err := scanInts(tx.query(
 		ctx,
 		withBidirectionalLineage(`
 			SELECT d.dump_id FROM lineage_with_dumps d
@@ -130,7 +130,7 @@ func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, 
 		conds = append(conds, sqlf.Sprintf("indexer = %s", indexer))
 	}
 
-	dumps, err := scanDumps(tx.Query(
+	dumps, err := scanDumps(tx.query(
 		ctx,
 		sqlf.Sprintf(`
 			SELECT

@@ -132,7 +132,7 @@ func (s *store) GetIndexes(ctx context.Context, opts GetIndexesOptions) (_ []Ind
 		conds = append(conds, sqlf.Sprintf("TRUE"))
 	}
 
-	count, _, err := scanFirstInt(tx.Query(
+	count, _, err := scanFirstInt(tx.query(
 		ctx,
 		sqlf.Sprintf(`SELECT COUNT(*) FROM lsif_indexes_with_repository_name u WHERE %s`, sqlf.Join(conds, " AND ")),
 	))
@@ -140,7 +140,7 @@ func (s *store) GetIndexes(ctx context.Context, opts GetIndexesOptions) (_ []Ind
 		return nil, 0, err
 	}
 
-	indexes, err := scanIndexes(tx.Query(
+	indexes, err := scanIndexes(tx.query(
 		ctx,
 		sqlf.Sprintf(`
 			SELECT
@@ -289,7 +289,7 @@ func (s *store) DeleteIndexByID(ctx context.Context, id int) (_ bool, err error)
 	}
 	defer func() { err = tx.Done(err) }()
 
-	_, exists, err := scanFirstInt(tx.Query(
+	_, exists, err := scanFirstInt(tx.query(
 		ctx,
 		sqlf.Sprintf(`
 			DELETE FROM lsif_indexes

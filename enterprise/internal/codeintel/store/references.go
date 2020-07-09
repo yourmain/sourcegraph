@@ -42,7 +42,7 @@ func (s *store) SameRepoPager(ctx context.Context, repositoryID int, commit, sch
 		return 0, nil, err
 	}
 
-	visibleIDs, err := scanInts(tx.Query(
+	visibleIDs, err := scanInts(tx.query(
 		ctx,
 		withBidirectionalLineage(`SELECT id FROM visible_ids`, repositoryID, commit),
 	))
@@ -60,7 +60,7 @@ func (s *store) SameRepoPager(ctx context.Context, repositoryID int, commit, sch
 		sqlf.Sprintf("r.dump_id IN (%s)", sqlf.Join(intsToQueries(visibleIDs), ", ")),
 	}
 
-	totalCount, _, err := scanFirstInt(tx.Query(
+	totalCount, _, err := scanFirstInt(tx.query(
 		ctx,
 		sqlf.Sprintf(`SELECT COUNT(*) FROM lsif_references r WHERE %s`, sqlf.Join(conds, " AND ")),
 	))
@@ -99,7 +99,7 @@ func (s *store) PackageReferencePager(ctx context.Context, scheme, name, version
 		sqlf.Sprintf("d.visible_at_tip = true"),
 	}
 
-	totalCount, _, err := scanFirstInt(tx.Query(
+	totalCount, _, err := scanFirstInt(tx.query(
 		ctx,
 		sqlf.Sprintf(`
 			SELECT COUNT(*) FROM lsif_references r
@@ -112,7 +112,7 @@ func (s *store) PackageReferencePager(ctx context.Context, scheme, name, version
 	}
 
 	pageFromOffset := func(ctx context.Context, offset int) ([]types.PackageReference, error) {
-		return scanPackageReferences(tx.Query(ctx, sqlf.Sprintf(`
+		return scanPackageReferences(tx.query(ctx, sqlf.Sprintf(`
 			SELECT d.id, r.scheme, r.name, r.version, r.filter FROM lsif_references r
 			LEFT JOIN lsif_dumps_with_repository_name d ON d.id = r.dump_id
 			WHERE %s ORDER BY d.repository_id, d.root LIMIT %d OFFSET %d
