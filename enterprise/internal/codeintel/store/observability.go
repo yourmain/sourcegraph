@@ -373,20 +373,6 @@ func (s *ObservedStore) Transact(ctx context.Context) (Store, error) {
 	return s.wrap(tx), nil
 }
 
-// Savepoint calls into the inner store and registers the observed results.
-func (s *ObservedStore) Savepoint(ctx context.Context) (_ string, err error) {
-	ctx, endObservation := s.savepointOperation.With(ctx, &err, observation.Args{})
-	defer endObservation(1, observation.Args{})
-	return s.store.Savepoint(ctx)
-}
-
-// RollbackToSavepoint calls into the inner store and registers the observed results.
-func (s *ObservedStore) RollbackToSavepoint(ctx context.Context, name string) (err error) {
-	ctx, endObservation := s.rollbackToSavepointOperation.With(ctx, &err, observation.Args{})
-	defer endObservation(1, observation.Args{})
-	return s.store.RollbackToSavepoint(ctx, name)
-}
-
 // Done calls into the inner store and registers the observed results.
 func (s *ObservedStore) Done(e error) error {
 	var observedErr error = nil

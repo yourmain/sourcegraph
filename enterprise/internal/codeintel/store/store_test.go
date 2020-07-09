@@ -12,7 +12,7 @@ func init() {
 }
 
 func rawTestStore() *store {
-	return &store{Store: base.NewWithHandle(dbconn.Global)}
+	return &store{Store: base.NewWithHandle(base.NewHandleWithDB(dbconn.Global))}
 }
 
 func testStore() Store {

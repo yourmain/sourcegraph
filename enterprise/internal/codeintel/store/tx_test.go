@@ -1,59 +1,52 @@
 package store
 
-import (
-	"context"
-	"testing"
+// func TestSavepointNotInTransaction(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip()
+// 	}
+// 	dbtesting.SetupGlobalTestDB(t)
+// 	store := testStore()
 
-	"github.com/sourcegraph/sourcegraph/internal/db/dbtesting"
-)
+// 	if _, err := store.Savepoint(context.Background()); err != ErrNoTransaction {
+// 		t.Errorf("unexpected error. want=%q have=%q", ErrNoTransaction, err)
+// 	}
+// }
 
-func TestSavepointNotInTransaction(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	dbtesting.SetupGlobalTestDB(t)
-	store := testStore()
+// func TestRollbackToSavepointNotInTransaction(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip()
+// 	}
+// 	dbtesting.SetupGlobalTestDB(t)
+// 	store := testStore()
 
-	if _, err := store.Savepoint(context.Background()); err != ErrNoTransaction {
-		t.Errorf("unexpected error. want=%q have=%q", ErrNoTransaction, err)
-	}
-}
+// 	if err := store.RollbackToSavepoint(context.Background(), "sp_test"); err != ErrNoTransaction {
+// 		t.Errorf("unexpected error. want=%q have=%q", ErrNoTransaction, err)
+// 	}
+// }
 
-func TestRollbackToSavepointNotInTransaction(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	dbtesting.SetupGlobalTestDB(t)
-	store := testStore()
+// func TestRollbackToSavepointTwice(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip()
+// 	}
+// 	dbtesting.SetupGlobalTestDB(t)
+// 	store := testStore()
 
-	if err := store.RollbackToSavepoint(context.Background(), "sp_test"); err != ErrNoTransaction {
-		t.Errorf("unexpected error. want=%q have=%q", ErrNoTransaction, err)
-	}
-}
+// 	tx, err := store.Transact(context.Background())
+// 	if err != nil {
+// 		t.Errorf("unexpected error creating transaction: %s", err)
+// 	}
+// 	defer func() { _ = tx.Done(nil) }()
 
-func TestRollbackToSavepointTwice(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	dbtesting.SetupGlobalTestDB(t)
-	store := testStore()
+// 	savepointID, err := tx.Savepoint(context.Background())
+// 	if err != nil {
+// 		t.Errorf("unexpected error creating savepoint: %s", err)
+// 	}
 
-	tx, err := store.Transact(context.Background())
-	if err != nil {
-		t.Errorf("unexpected error creating transaction: %s", err)
-	}
-	defer func() { _ = tx.Done(nil) }()
+// 	if err := tx.RollbackToSavepoint(context.Background(), savepointID); err != nil {
+// 		t.Errorf("unexpected error rolling back to savepoint: %s", err)
+// 	}
 
-	savepointID, err := tx.Savepoint(context.Background())
-	if err != nil {
-		t.Errorf("unexpected error creating savepoint: %s", err)
-	}
-
-	if err := tx.RollbackToSavepoint(context.Background(), savepointID); err != nil {
-		t.Errorf("unexpected error rolling back to savepoint: %s", err)
-	}
-
-	if err := tx.RollbackToSavepoint(context.Background(), savepointID); err != ErrNoSavepoint {
-		t.Errorf("unexpected error. want=%q have=%q", ErrNoSavepoint, err)
-	}
-}
+// 	if err := tx.RollbackToSavepoint(context.Background(), savepointID); err != ErrNoSavepoint {
+// 		t.Errorf("unexpected error. want=%q have=%q", ErrNoSavepoint, err)
+// 	}
+// }

@@ -110,13 +110,11 @@ type GetIndexesOptions struct {
 
 // GetIndexes returns a list of indexes and the total count of records matching the given conditions.
 func (s *store) GetIndexes(ctx context.Context, opts GetIndexesOptions) (_ []Index, _ int, err error) {
-	tx, started, err := s.transact(ctx)
+	tx, err := s.transact(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	if started {
-		defer func() { err = tx.Done(err) }()
-	}
+	defer func() { err = tx.Done(err) }()
 
 	var conds []*sqlf.Query
 
@@ -134,7 +132,7 @@ func (s *store) GetIndexes(ctx context.Context, opts GetIndexesOptions) (_ []Ind
 		conds = append(conds, sqlf.Sprintf("TRUE"))
 	}
 
-	count, _, err := scanFirstInt(tx.query(
+	count, _, err := scanFirstInt(tx.Query(
 		ctx,
 		sqlf.Sprintf(`SELECT COUNT(*) FROM lsif_indexes_with_repository_name u WHERE %s`, sqlf.Join(conds, " AND ")),
 	))
@@ -142,7 +140,7 @@ func (s *store) GetIndexes(ctx context.Context, opts GetIndexesOptions) (_ []Ind
 		return nil, 0, err
 	}
 
-	indexes, err := scanIndexes(tx.query(
+	indexes, err := scanIndexes(tx.Query(
 		ctx,
 		sqlf.Sprintf(`
 			SELECT
@@ -275,7 +273,7 @@ func (s *store) DequeueIndex(ctx context.Context) (Index, Store, bool, error) {
 		return Index{}, nil, false, err
 	}
 
-	return index.(Index), s.Use(tx), true, nil
+	return index.(Index), s.With(tx), true, nil
 }
 
 // RequeueIndex updates the state of the index to queued and adds a processing delay before the next dequeue attempt.
@@ -285,15 +283,13 @@ func (s *store) RequeueIndex(ctx context.Context, id int, after time.Time) error
 
 // DeleteIndexByID deletes an index by its identifier.
 func (s *store) DeleteIndexByID(ctx context.Context, id int) (_ bool, err error) {
-	tx, started, err := s.transact(ctx)
+	tx, err := s.transact(ctx)
 	if err != nil {
 		return false, err
 	}
-	if started {
-		defer func() { err = tx.Done(err) }()
-	}
+	defer func() { err = tx.Done(err) }()
 
-	_, exists, err := scanFirstInt(tx.query(
+	_, exists, err := scanFirstInt(tx.Query(
 		ctx,
 		sqlf.Sprintf(`
 			DELETE FROM lsif_indexes

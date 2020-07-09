@@ -7,7 +7,6 @@ import (
 
 	"github.com/keegancsmith/sqlf"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store/base"
-	"github.com/sourcegraph/sourcegraph/internal/db/dbutil"
 )
 
 // Store is the database layer for the workqueue package that handles worker-side operations.
@@ -82,33 +81,28 @@ type StoreOptions struct {
 type RecordScanFn func(rows *sql.Rows, err error) (interface{}, bool, error)
 
 // NewStore creates a new store with the given database handle and options.
-func NewStore(db dbutil.DB, options StoreOptions) *Store {
+func NewStore(handle *base.TransactableHandle, options StoreOptions) *Store {
 	if options.ViewName == "" {
 		options.ViewName = options.TableName
 	}
 
 	return &Store{
-		Store:   base.NewWithHandle(db),
+		Store:   base.NewWithHandle(handle),
 		options: options,
 	}
 }
 
-// Use creates a new store with the underlying database handle from the given store.
-func (s *Store) Use(other base.ShareableStore) *Store {
-	return &Store{Store: s.Store.Use(other)}
+func (s *Store) With(other base.ShareableStore) *Store {
+	return &Store{Store: s.Store.With(other)}
 }
 
-// Transact returns a modified store whose methods operate within the context of a
-// transaction. This method will return an error if the underlying store cannot be
-// interface upgraded to a TxBeginner. If this method results in a new transaction
-// starting, a true-valued flag is returned.
-func (s *Store) Transact(ctx context.Context) (*Store, bool, error) {
-	txBase, started, err := s.Store.Transact(ctx)
+func (s *Store) Transact(ctx context.Context) (*Store, error) {
+	txBase, err := s.Store.Transact(ctx)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	return &Store{Store: txBase, options: s.options}, started, err
+	return &Store{Store: txBase, options: s.options}, nil
 }
 
 // Dequeue selects the first unlocked record matching the given conditions and locks it in a new transaction that
@@ -180,12 +174,13 @@ RETURNING id
 `
 
 func (s *Store) lock(ctx context.Context, id int) (record interface{}, tx *Store, exists bool, err error) {
-	tx, started, err := s.Transact(ctx)
+	if s.InTransaction() {
+		return nil, nil, false, ErrDequeueTransaction
+	}
+
+	tx, err = s.Transact(ctx)
 	if err != nil {
 		return nil, nil, false, err
-	}
-	if !started {
-		return nil, nil, false, ErrDequeueTransaction
 	}
 
 	// Select the candidate record within the transaction to lock it from other processes. Note

@@ -18,15 +18,6 @@ type Store interface {
 	// to a TxBeginner.
 	Transact(ctx context.Context) (Store, error)
 
-	// Savepoint creates a named position in the transaction from which all additional work
-	// can be discarded. The returned identifier can be passed to RollbackToSavepont to undo
-	// all the work since this call.
-	Savepoint(ctx context.Context) (string, error)
-
-	// RollbackToSavepoint throws away all the work on the underlying transaction since the
-	// savepoint with the given name was created.
-	RollbackToSavepoint(ctx context.Context, savepointID string) error
-
 	// Done commits underlying the transaction on a nil error value and performs a rollback
 	// otherwise. If an error occurs during commit or rollback of the transaction, the error
 	// is added to the resulting error value. If the store does not wrap a transaction the
@@ -215,11 +206,11 @@ func New(postgresDSN string) (Store, error) {
 }
 
 func NewWithHandle(db dbutil.DB) Store {
-	return &store{Store: base.NewWithHandle(db)}
+	return &store{Store: base.NewWithHandle(base.NewHandleWithDB(db))}
 }
 
-func (s *store) Use(other base.ShareableStore) Store {
-	return &store{Store: s.Store.Use(other)}
+func (s *store) With(other base.ShareableStore) Store {
+	return &store{Store: s.Store.With(other)}
 }
 
 // query performs QueryContext on the underlying connection.

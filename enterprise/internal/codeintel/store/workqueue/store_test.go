@@ -33,7 +33,7 @@ func TestDequeueState(t *testing.T) {
 		t.Fatalf("unexpected error inserting records: %s", err)
 	}
 
-	record, tx, ok, err := NewStore(dbconn.Global, defaultTestStoreOptions).Dequeue(context.Background(), nil)
+	record, tx, ok, err := testStore(defaultTestStoreOptions).Dequeue(context.Background(), nil)
 	assertDequeueRecordResult(t, 4, record, tx, ok, err)
 }
 
@@ -52,7 +52,7 @@ func TestDequeueOrder(t *testing.T) {
 		t.Fatalf("unexpected error inserting records: %s", err)
 	}
 
-	record, tx, ok, err := NewStore(dbconn.Global, defaultTestStoreOptions).Dequeue(context.Background(), nil)
+	record, tx, ok, err := testStore(defaultTestStoreOptions).Dequeue(context.Background(), nil)
 	assertDequeueRecordResult(t, 2, record, tx, ok, err)
 }
 
@@ -72,7 +72,7 @@ func TestDequeueConditions(t *testing.T) {
 	}
 
 	conditions := []*sqlf.Query{sqlf.Sprintf("w.id < 4")}
-	record, tx, ok, err := NewStore(dbconn.Global, defaultTestStoreOptions).Dequeue(context.Background(), conditions)
+	record, tx, ok, err := testStore(defaultTestStoreOptions).Dequeue(context.Background(), conditions)
 	assertDequeueRecordResult(t, 3, record, tx, ok, err)
 }
 
@@ -91,7 +91,7 @@ func TestDequeueDelay(t *testing.T) {
 		t.Fatalf("unexpected error inserting records: %s", err)
 	}
 
-	record, tx, ok, err := NewStore(dbconn.Global, defaultTestStoreOptions).Dequeue(context.Background(), nil)
+	record, tx, ok, err := testStore(defaultTestStoreOptions).Dequeue(context.Background(), nil)
 	assertDequeueRecordResult(t, 4, record, tx, ok, err)
 }
 
@@ -125,7 +125,7 @@ func TestDequeueView(t *testing.T) {
 	}
 
 	conditions := []*sqlf.Query{sqlf.Sprintf("v.new_field < 15")}
-	record, tx, ok, err := NewStore(dbconn.Global, options).Dequeue(context.Background(), conditions)
+	record, tx, ok, err := testStore(options).Dequeue(context.Background(), conditions)
 	assertDequeueRecordViewResult(t, 2, 14, record, tx, ok, err)
 }
 
@@ -141,7 +141,7 @@ func TestDequeueConcurrent(t *testing.T) {
 		t.Fatalf("unexpected error inserting records: %s", err)
 	}
 
-	store := NewStore(dbconn.Global, defaultTestStoreOptions)
+	store := testStore(defaultTestStoreOptions)
 
 	// Worker A
 	record1, tx1, ok, err := store.Dequeue(context.Background(), nil)
@@ -193,7 +193,7 @@ func TestRequeue(t *testing.T) {
 
 	after := testNow().Add(time.Hour)
 
-	if err := NewStore(dbconn.Global, defaultTestStoreOptions).Requeue(context.Background(), 1, after); err != nil {
+	if err := testStore(defaultTestStoreOptions).Requeue(context.Background(), 1, after); err != nil {
 		t.Fatalf("unexpected error requeueing index: %s", err)
 	}
 
@@ -249,7 +249,7 @@ func TestResetStalled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resetIDs, erroredIDs, err := NewStore(dbconn.Global, defaultTestStoreOptions).ResetStalled(context.Background())
+	resetIDs, erroredIDs, err := testStore(defaultTestStoreOptions).ResetStalled(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error resetting stalled uploads: %s", err)
 	}
@@ -302,6 +302,10 @@ func TestResetStalled(t *testing.T) {
 	if state != "errored" {
 		t.Errorf("unexpected state. want=%q have=%q", "errored", state)
 	}
+}
+
+func testStore(options StoreOptions) *Store {
+	return NewStore(base.NewHandleWithDB(dbconn.Global), options)
 }
 
 type TestRecord struct {

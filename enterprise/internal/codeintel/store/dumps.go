@@ -97,13 +97,11 @@ func (s *store) GetDumpByID(ctx context.Context, id int) (Dump, bool, error) {
 // optional indexer. If rootMustEnclosePath is true, then only dumps with a root which is a prefix of path are returned. Otherwise,
 // any dump with a root intersecting the given path is returned.
 func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, path string, rootMustEnclosePath bool, indexer string) (_ []Dump, err error) {
-	tx, started, err := s.transact(ctx)
+	tx, err := s.transact(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if started {
-		defer func() { err = tx.Done(err) }()
-	}
+	defer func() { err = tx.Done(err) }()
 
 	var cond *sqlf.Query
 	if rootMustEnclosePath {
@@ -114,7 +112,7 @@ func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, 
 		cond = sqlf.Sprintf(`%s LIKE (d.root || '%%%%') OR d.root LIKE (%s || '%%%%')`, path, path)
 	}
 
-	ids, err := scanInts(tx.query(
+	ids, err := scanInts(tx.Query(
 		ctx,
 		withBidirectionalLineage(`
 			SELECT d.dump_id FROM lineage_with_dumps d
@@ -132,7 +130,7 @@ func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, 
 		conds = append(conds, sqlf.Sprintf("indexer = %s", indexer))
 	}
 
-	dumps, err := scanDumps(tx.query(
+	dumps, err := scanDumps(tx.Query(
 		ctx,
 		sqlf.Sprintf(`
 			SELECT
