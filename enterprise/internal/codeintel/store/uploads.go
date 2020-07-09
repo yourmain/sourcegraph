@@ -494,7 +494,7 @@ func (s *store) DeleteUploadsWithoutRepository(ctx context.Context, now time.Tim
 // UploadMaxNumResets times will be marked as errored. This method returns a list of updated and errored upload
 // identifiers.
 func (s *store) ResetStalled(ctx context.Context, now time.Time) ([]int, []int, error) {
-	return s.makeUploadWorkQueueStore().ResetStalled(ctx, now)
+	return s.makeUploadWorkQueueStore().ResetStalled(ctx)
 }
 
 //

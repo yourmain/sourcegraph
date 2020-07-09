@@ -331,7 +331,7 @@ func (s *store) DeleteIndexesWithoutRepository(ctx context.Context, now time.Tim
 // been reset more than IndexMaxNumResets times will be marked as errored. This method returns a list of
 // updated and errored index identifiers.
 func (s *store) ResetStalledIndexes(ctx context.Context, now time.Time) ([]int, []int, error) {
-	return s.makeIndexWorkQueueStore().ResetStalled(ctx, now)
+	return s.makeIndexWorkQueueStore().ResetStalled(ctx)
 }
 
 // StalledIndexMaxAge is the maximum allowable duration between updating the state of an
