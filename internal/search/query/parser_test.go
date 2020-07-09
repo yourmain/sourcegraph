@@ -304,6 +304,12 @@ func TestParse(t *testing.T) {
 			WantHeuristic: Same,
 		},
 		{
+			Name:          "Basic",
+			Input:         "(repo:derp) (file:foo) AND (file:bar X)",
+			WantGrammar:   `(and "a" "b" "c")`,
+			WantHeuristic: Same,
+		},
+		{
 			Input:         "(f(x)oo((a|b))bar)",
 			WantGrammar:   Spec(`(concat "f" "x" "oo" "a|b" "bar")`),
 			WantHeuristic: Diff(`"(f(x)oo((a|b))bar)"`),

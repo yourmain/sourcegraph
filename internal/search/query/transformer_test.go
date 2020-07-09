@@ -286,6 +286,32 @@ func TestConvertEmptyGroupsToLiteral(t *testing.T) {
 	}
 }
 
+func TestExpandOr(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{
+			input: "(repo:repofoo (file:repofile or file:repobar))",
+			want:  "",
+		},
+	}
+	for _, c := range cases {
+		t.Run("Map query", func(t *testing.T) {
+			query, _ := ParseAndOr(c.input)
+			queries := ExpandOr(query)
+			var queriesStr []string
+			for _, q := range queries {
+				queriesStr = append(queriesStr, prettyPrint(q))
+			}
+			got := strings.Join(queriesStr, "\n")
+			if diff := cmp.Diff(c.want, got); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
 func TestMap(t *testing.T) {
 	cases := []struct {
 		input string

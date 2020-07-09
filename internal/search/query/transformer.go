@@ -129,6 +129,11 @@ func partition(nodes []Node, fn func(node Node) bool) (left, right []Node) {
 	return left, right
 }
 
+func ExpandOr(query []Node) [][]Node {
+	disjuncted := [][]Node{}
+	return disjuncted
+}
+
 func substituteOrForRegexp(nodes []Node) []Node {
 	isPattern := func(node Node) bool {
 		if pattern, ok := node.(Pattern); ok && !pattern.Negated {
