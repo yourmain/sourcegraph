@@ -75,7 +75,7 @@ func (s *Store) Handle() dbutil.DB {
 	return s.db
 }
 
-// Use replaces the underlying database handle with the handle from the given store. This
+// Use creates a new store with the underlying database handle from the given store. This
 // method should be used when two distinct store instances need to perform an operation
 // within the same shared transaction.
 //

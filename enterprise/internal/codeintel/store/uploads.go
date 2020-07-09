@@ -398,7 +398,9 @@ var uploadColumnsWithNullRank = []*sqlf.Query{
 // This transaction must be closed. If there is no such unlocked upload, a zero-value upload and nil store will
 // be returned along with a false valued flag. This method must not be called from within a transaction.
 func (s *store) Dequeue(ctx context.Context, maxSize int) (Upload, Store, bool, error) {
-	upload, tx, ok, err := s.makeUploadWorkQueueStore(maxSize).Dequeue(ctx)
+	upload, tx, ok, err := s.makeUploadWorkQueueStore().Dequeue(ctx, []*sqlf.Query{
+		sqlf.Sprintf("upload_size IS NULL OR upload_size <= %s", maxSize),
+	})
 	if err != nil || !ok {
 		return Upload{}, nil, false, err
 	}
@@ -408,7 +410,7 @@ func (s *store) Dequeue(ctx context.Context, maxSize int) (Upload, Store, bool, 
 
 // Requeue updates the state of the upload to queued and adds a processing delay before the next dequeue attempt.
 func (s *store) Requeue(ctx context.Context, id int, after time.Time) error {
-	return s.makeUploadWorkQueueStore(0).Requeue(ctx, id, after)
+	return s.makeUploadWorkQueueStore().Requeue(ctx, id, after)
 }
 
 // GetStates returns the states for the uploads with the given identifiers.
@@ -492,7 +494,7 @@ func (s *store) DeleteUploadsWithoutRepository(ctx context.Context, now time.Tim
 // UploadMaxNumResets times will be marked as errored. This method returns a list of updated and errored upload
 // identifiers.
 func (s *store) ResetStalled(ctx context.Context, now time.Time) ([]int, []int, error) {
-	return s.makeUploadWorkQueueStore(0).ResetStalled(ctx, now)
+	return s.makeUploadWorkQueueStore().ResetStalled(ctx, now)
 }
 
 //
@@ -509,18 +511,14 @@ const StalledUploadMaxAge = time.Second * 5
 // "queued" on its next reset.
 const UploadMaxNumResets = 3
 
-func (s *store) makeUploadWorkQueueStore(maxSize int) *workqueue.Store {
+func (s *store) makeUploadWorkQueueStore() *workqueue.Store {
 	return workqueue.NewStore(s.Handle(), workqueue.StoreOptions{
 		TableName:         "lsif_uploads",
 		ViewName:          "lsif_uploads_with_repository_name u",
 		ColumnExpressions: uploadColumnsWithNullRank,
 		Scan:              scanFirstUploadInterface,
 		OrderByExpression: sqlf.Sprintf("uploaded_at"),
-		// TODO - these need to be supplied at query time instead (turns out)
-		AdditionalConditions: []*sqlf.Query{
-			sqlf.Sprintf("upload_size IS NULL OR upload_size <= %s", maxSize),
-		},
-		StalledMaxAge: StalledUploadMaxAge,
-		MaxNumResets:  UploadMaxNumResets,
+		StalledMaxAge:     StalledUploadMaxAge,
+		MaxNumResets:      UploadMaxNumResets,
 	})
 }

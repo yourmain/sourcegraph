@@ -8,5 +8,5 @@ var ErrDequeueTransaction = errors.New("unexpected transaction")
 // ErrDequeueRace occurs when an upload selected for dequeue has been locked by another worker.
 var ErrDequeueRace = errors.New("dequeue race")
 
-// ErrNoRecord occurs when a record cannot be selected after it ha been locked.
-var ErrNoRecord = errors.New("no record")
+// ErrNoRecord occurs when a record cannot be selected after it has been locked.
+var ErrNoRecord = errors.New("locked record not found")

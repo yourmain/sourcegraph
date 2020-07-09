@@ -270,7 +270,7 @@ var indexColumnsWithNullRank = []*sqlf.Query{
 // closed. If there is no such unlocked index, a zero-value index and nil store will be returned along with
 // a false valued flag. This method must not be called from within a transaction.
 func (s *store) DequeueIndex(ctx context.Context) (Index, Store, bool, error) {
-	index, tx, ok, err := s.makeIndexWorkQueueStore().Dequeue(ctx)
+	index, tx, ok, err := s.makeIndexWorkQueueStore().Dequeue(ctx, nil)
 	if err != nil || !ok {
 		return Index{}, nil, false, err
 	}
@@ -347,13 +347,12 @@ const IndexMaxNumResets = 3
 
 func (s *store) makeIndexWorkQueueStore() *workqueue.Store {
 	return workqueue.NewStore(s.Handle(), workqueue.StoreOptions{
-		TableName:            "lsif_indexes",
-		ViewName:             "lsif_indexes_with_repository_name u",
-		ColumnExpressions:    indexColumnsWithNullRank,
-		Scan:                 scanFirstIndexInterface,
-		OrderByExpression:    sqlf.Sprintf("queued_at"),
-		AdditionalConditions: []*sqlf.Query{},
-		StalledMaxAge:        StalledIndexMaxAge,
-		MaxNumResets:         IndexMaxNumResets,
+		TableName:         "lsif_indexes",
+		ViewName:          "lsif_indexes_with_repository_name u",
+		ColumnExpressions: indexColumnsWithNullRank,
+		Scan:              scanFirstIndexInterface,
+		OrderByExpression: sqlf.Sprintf("queued_at"),
+		StalledMaxAge:     StalledIndexMaxAge,
+		MaxNumResets:      IndexMaxNumResets,
 	})
 }
