@@ -37,8 +37,8 @@ type StoreOptions struct {
 
 	// ViewName is the name of the table or view to query when selecting a candidate and when selecting
 	// the record after it has been locked. If this value is not supplied, `TableName` will be used. The
-	// value supplied may also indicate a table alias, which can be referenced in `ColumnExpressions`,
-	// `OrderByExpression`, and the conditions suplied to `Dequeue`.
+	// value supplied may also indicate a table alias, which can be referenced in `OrderByExpression`,
+	// `ColumnExpressions`, and the conditions suplied to `Dequeue`.
 	//
 	// The target of this field must be a view on top of the configured table, otherwise locking and
 	// querying will not behave in a well-defined manner.
@@ -49,10 +49,6 @@ type StoreOptions struct {
 	// additional query.
 	ViewName string
 
-	// ColumnExpressions are the target columns provided to the query when selecting a locked record.
-	// These expressions may use the alias provided in `ViewName`, if one was supplied.
-	ColumnExpressions []*sqlf.Query
-
 	// Scan is the function used to convert a rows object into a record of the expected shape.
 	Scan RecordScanFn
 
@@ -60,6 +56,10 @@ type StoreOptions struct {
 	// batch of work to perform. This expression may use the alias provided in `ViewName`, if one was
 	// supplied.
 	OrderByExpression *sqlf.Query
+
+	// ColumnExpressions are the target columns provided to the query when selecting a locked record.
+	// These expressions may use the alias provided in `ViewName`, if one was supplied.
+	ColumnExpressions []*sqlf.Query
 
 	// StalledMaxAge is the maximum allow duration between updating the state of a record as "processing"
 	// and locking the record row during processing. An unlocked row that is marked as processing likely
@@ -165,7 +165,7 @@ WITH candidate AS (
 	SELECT id FROM %s
 	WHERE
 		state = 'queued' AND
-		(process_after IS NULL OR process_after >= NOW())
+		(process_after IS NULL OR process_after <= NOW())
 		%s
 	ORDER BY %s
 	FOR UPDATE SKIP LOCKED
@@ -174,7 +174,7 @@ WITH candidate AS (
 UPDATE %s
 SET
 	state = 'processing',
-	started_at = now()
+	started_at = NOW()
 WHERE id IN (SELECT id FROM candidate)
 RETURNING id
 `
@@ -263,13 +263,13 @@ WHERE id = %s
 // state. In order to prevent input that continually crashes worker instances, records that have bene reset more
 // than `MaxNumResets` times will be marked as errored. This method returns a list of record identifiers that have
 // been reset and a list of record identifiers that have been marked as errored.
-func (s *Store) ResetStalled(ctx context.Context, now time.Time) (resetIDs, erroredIDs []int, err error) {
-	resetIDs, err = s.resetStalled(ctx, resetStalledQuery, now)
+func (s *Store) ResetStalled(ctx context.Context) (resetIDs, erroredIDs []int, err error) {
+	resetIDs, err = s.resetStalled(ctx, resetStalledQuery)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	erroredIDs, err = s.resetStalled(ctx, resetStalledMaxResetsQuery, now)
+	erroredIDs, err = s.resetStalled(ctx, resetStalledMaxResetsQuery)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -277,14 +277,13 @@ func (s *Store) ResetStalled(ctx context.Context, now time.Time) (resetIDs, erro
 	return resetIDs, erroredIDs, nil
 }
 
-func (s *Store) resetStalled(ctx context.Context, q string, now time.Time) ([]int, error) {
+func (s *Store) resetStalled(ctx context.Context, q string) ([]int, error) {
 	return base.ScanInts(s.Query(
 		ctx,
 		sqlf.Sprintf(
 			q,
 			quote(s.options.TableName),
-			now.UTC(),
-			s.options.StalledMaxAge/time.Second,
+			int(s.options.StalledMaxAge/time.Second),
 			s.options.MaxNumResets,
 			quote(s.options.TableName),
 		),
@@ -297,7 +296,7 @@ WITH stalled AS (
 	SELECT id FROM %s
 	WHERE
 		state = 'processing' AND
-		%s - started_at > (%s * interval '1 second') AND
+		NOW() - started_at > (%s * '1 second'::interval) AND
 		num_resets < %s
 	FOR UPDATE SKIP LOCKED
 )
@@ -316,7 +315,7 @@ WITH stalled AS (
 	SELECT id FROM %s
 	WHERE
 		state = 'processing' AND
-		%s - started_at > (%s * interval '1 second') AND
+		NOW() - started_at > (%s * '1 second'::interval) AND
 		num_resets >= %s
 	FOR UPDATE SKIP LOCKED
 )
