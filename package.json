@@ -27,7 +27,8 @@
     "build-storybook": "build-storybook -c .storybook",
     "cover-storybook": "nyc --hook-require=false yarn jest .storybook/coverage",
     "percy-storybook": "PERCY_TOKEN=${PERCY_STORYBOOK_TOKEN} percy-storybook --widths=768",
-    "deduplicate": "yarn-deduplicate -s fewer"
+    "deduplicate": "yarn-deduplicate -s fewer",
+    "chromatic": "npx chromatic --project-token=$CHROMATIC_TOKEN"
   },
   "browserslist": [
     "last 1 version",
@@ -180,6 +181,7 @@
     "chai-as-promised": "^7.1.1",
     "chalk": "^4.1.0",
     "chokidar-cli": "^2.1.0",
+    "chromatic": "^5.0.0",
     "chrome-webstore-upload-cli": "^1.2.0",
     "command-exists": "^1.2.9",
     "cross-env": "^7.0.2",
@@ -232,6 +234,7 @@
     "sinon": "^9.0.2",
     "socket.io": "^2.3.0",
     "socket.io-client": "^2.3.0",
+    "storybook-addon-designs": "^5.4.0",
     "string-width": "^4.2.0",
     "style-loader": "^1.2.1",
     "stylelint": "^13.6.1",

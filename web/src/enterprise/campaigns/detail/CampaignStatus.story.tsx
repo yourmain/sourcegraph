@@ -1,3 +1,4 @@
+import { withDesign } from 'storybook-addon-designs'
 import { storiesOf } from '@storybook/react'
 import React from 'react'
 import { CampaignStatus } from './CampaignStatus'
@@ -7,12 +8,17 @@ import { boolean } from '@storybook/addon-knobs'
 import { createMemoryHistory } from 'history'
 import webStyles from '../../../SourcegraphWebApp.scss'
 
-const { add } = storiesOf('web/CampaignStatus', module).addDecorator(story => (
-    <>
-        <style>{webStyles}</style>
-        <div className="theme-light container">{story()}</div>
-    </>
-))
+const { add } = storiesOf('web/CampaignStatus', module)
+    .addDecorator(story => (
+        <>
+            <style>{webStyles}</style>
+            <div className="theme-light container">{story()}</div>
+        </>
+    ))
+    .addDecorator(withDesign)
+    .addParameters({
+        design: { type: 'figma', url: 'https://www.figma.com/file/kRf5i7xf1p4zs3OyX0DUVp/Campaigns' },
+    })
 
 add('Errored', () => (
     <CampaignStatus
