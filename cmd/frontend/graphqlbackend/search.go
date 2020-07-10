@@ -59,6 +59,7 @@ type SearchArgs struct {
 	After          *string
 	First          *int32
 	VersionContext *string
+	Globbing       bool
 }
 
 type SearchImplementer interface {
@@ -94,7 +95,7 @@ func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
 		// To process the input as an and/or query, the flag must be
 		// enabled (default is on) and must contain either an 'and' or
 		// 'or' expression. Else, fallback to the older existing parser.
-		queryInfo, err = query.ProcessAndOr(args.Query, searchType)
+		queryInfo, err = query.ProcessAndOr(args.Query, searchType, args.Globbing)
 		if err != nil {
 			return alertForQuery(args.Query, err), nil
 		}
@@ -133,7 +134,15 @@ func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
 	}, nil
 }
 
-func (r *schemaResolver) Search(args *SearchArgs) (SearchImplementer, error) {
+func (r *schemaResolver) Search(ctx context.Context, args *SearchArgs) (SearchImplementer, error) {
+	settings, err := decodedViewerFinalSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if v := settings.SearchGlobbing; v != nil && *v {
+		args.Globbing = true
+	}
 	return NewSearchImplementer(args)
 }
 
