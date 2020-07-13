@@ -59,7 +59,6 @@ type SearchArgs struct {
 	After          *string
 	First          *int32
 	VersionContext *string
-	Globbing       bool
 }
 
 type SearchImplementer interface {
@@ -70,7 +69,7 @@ type SearchImplementer interface {
 }
 
 // NewSearchImplementer returns a SearchImplementer that provides search results and suggestions.
-func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
+func NewSearchImplementer(ctx context.Context, args *SearchArgs) (SearchImplementer, error) {
 	tr, _ := trace.New(context.Background(), "graphql.schemaResolver", "Search")
 	defer tr.Finish()
 
@@ -92,10 +91,19 @@ func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
 
 	var queryInfo query.QueryInfo
 	if (conf.AndOrQueryEnabled() && query.ContainsAndOrKeyword(args.Query)) || searchType == query.SearchTypeStructural {
+		settings, err := decodedViewerFinalSettings(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		globbing := false
+		if v := settings.SearchGlobbing; v != nil && *v {
+			globbing = true
+		}
 		// To process the input as an and/or query, the flag must be
 		// enabled (default is on) and must contain either an 'and' or
 		// 'or' expression. Else, fallback to the older existing parser.
-		queryInfo, err = query.ProcessAndOr(args.Query, searchType, args.Globbing)
+		queryInfo, err = query.ProcessAndOr(args.Query, query.ParserOptions{SearchType: searchType, Globbing: globbing})
 		if err != nil {
 			return alertForQuery(args.Query, err), nil
 		}
@@ -135,15 +143,7 @@ func NewSearchImplementer(args *SearchArgs) (SearchImplementer, error) {
 }
 
 func (r *schemaResolver) Search(ctx context.Context, args *SearchArgs) (SearchImplementer, error) {
-	settings, err := decodedViewerFinalSettings(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if v := settings.SearchGlobbing; v != nil && *v {
-		args.Globbing = true
-	}
-	return NewSearchImplementer(args)
+	return NewSearchImplementer(ctx, args)
 }
 
 // queryForStableResults transforms a query that returns a stable result

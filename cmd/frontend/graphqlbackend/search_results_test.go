@@ -34,7 +34,7 @@ func TestSearchResults(t *testing.T) {
 	limitOffset := &db.LimitOffset{Limit: maxReposToSearch() + 1}
 
 	getResults := func(t *testing.T, query, version string) []string {
-		r, err := (&schemaResolver{}).Search(&SearchArgs{Query: query, Version: version})
+		r, err := (&schemaResolver{}).Search(context.Background(), &SearchArgs{Query: query, Version: version})
 		if err != nil {
 			t.Fatal("Search:", err)
 		}
@@ -246,7 +246,7 @@ func TestSearchResults(t *testing.T) {
 
 	t.Run("test start time is not null when alert thrown", func(t *testing.T) {
 		for _, v := range searchVersions {
-			r, err := (&schemaResolver{}).Search(&SearchArgs{Query: `repo:*`, Version: v})
+			r, err := (&schemaResolver{}).Search(context.Background(), &SearchArgs{Query: `repo:*`, Version: v})
 			if err != nil {
 				t.Fatal("Search:", err)
 			}
@@ -1098,7 +1098,7 @@ func Test_SearchResultsResolver_ApproximateResultCount(t *testing.T) {
 }
 
 func TestSearchResolver_evaluateWarning(t *testing.T) {
-	q, _ := query.ProcessAndOr("file:foo or file:bar", query.SearchTypeRegex)
+	q, _ := query.ProcessAndOr("file:foo or file:bar", query.ParserOptions{query.SearchTypeRegex, false})
 	wantPrefix := "I'm having trouble understanding that query."
 	andOrQuery, _ := q.(*query.AndOrQuery)
 	got, _ := (&searchResolver{}).evaluate(context.Background(), andOrQuery.Query)
@@ -1108,7 +1108,7 @@ func TestSearchResolver_evaluateWarning(t *testing.T) {
 		}
 	})
 
-	_, err := query.ProcessAndOr("file:foo or or or", query.SearchTypeRegex)
+	_, err := query.ProcessAndOr("file:foo or or or", query.ParserOptions{query.SearchTypeRegex, false})
 	gotAlert := alertForQuery("", err)
 	t.Run("warn for unsupported ambiguous and/or query", func(t *testing.T) {
 		if !strings.HasPrefix(gotAlert.description, wantPrefix) {

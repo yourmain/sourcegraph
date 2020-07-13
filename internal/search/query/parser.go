@@ -825,12 +825,20 @@ func ParseAndOr(in string) ([]Node, error) {
 	return newOperator(nodes, And), nil
 }
 
+type ParserOptions struct {
+	SearchType SearchType
+
+	// defines whether field values of supported
+	// fields are treated as regex or glob.
+	Globbing bool
+}
+
 // ProcessAndOr query parses and validates an and/or query for a given search type.
-func ProcessAndOr(in string, searchType SearchType, globbing bool) (QueryInfo, error) {
+func ProcessAndOr(in string, options ParserOptions) (QueryInfo, error) {
 	var query []Node
 	var err error
 
-	switch searchType {
+	switch options.SearchType {
 	case SearchTypeLiteral, SearchTypeStructural:
 		query, err = ParseAndOrLiteral(in)
 		if err != nil {
@@ -845,7 +853,7 @@ func ProcessAndOr(in string, searchType SearchType, globbing bool) (QueryInfo, e
 		query = EmptyGroupsToLiteral(query)
 	}
 
-	if globbing {
+	if options.Globbing {
 		query = Map(query, globToRegex)
 	}
 
